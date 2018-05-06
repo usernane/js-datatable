@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>TODO supply a title</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <!--First include the css file and js file-->
+        <script type="text/javascript" src="../JSTable.js"></script>
+        <link rel="stylesheet" href="../JSTable.css">
+        <script type="text/javascript">
+            window.onload = function(){
+                //Create An instance of JSTable
+                //There are 3 attributes that can be 
+                //exist to create a basic table
+                // The attribute 'parent-html-id' is used to specify the 
+                //container that the table will be added to
+                //The attribute 'cols' is an array of objects
+                //that contains table columns.
+                //The atribute 'data' is an array of objects that contains 
+                //table data.
+                window.table = new JSTable({
+                    'parent-html-id':'table-container',
+                    cols:[
+                        {
+                            key:'col-1'
+                        },
+                        {
+                            key:'col-2'
+                        },
+                        {
+                            key:'col-3'
+                        }
+                    ],
+                    data:[
+                        {
+                            'col-1':'Jon',
+                            'col-2':'Mark'
+                        },
+                        {
+                            'col-1':'Ibrahim',
+                            'col-2':'Ali',
+                            'col-3':'BinAlshikh'
+                        },
+                        {
+                            'col-1':'Ahmed',
+                            'col-3':'Hussam'
+                        }
+                    ]
+                });
+                //finally, attach the table to its container.
+                window.table.attach();
+            };
+        </script>
+    </head>
+    <body>
+        <div id="table-container">
+            
+        </div>
+    </body>
+</html>
