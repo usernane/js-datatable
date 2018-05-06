@@ -1,6 +1,6 @@
 /**
  * Creates a new instance of <b>JSTable</b>.
- * @param {type} o An object that contains basic table configurations. 
+ * @param {Object} initObj An object that contains basic table configurations. 
  * This object can have the following set of attributes:
  * <ul>
  * <li><b>parent-html-id</b>: The ID of the container that the table will be appended 
@@ -48,7 +48,7 @@
  * @constructor
  * @returns {JSTable} An instance of the class.
  */
-function JSTable(o={},cols=[],data=[]){
+function JSTable(initObj={},cols=[],data=[]){
     var inst = this;
     Object.defineProperty(this,'obj',{
         value:{},
@@ -59,31 +59,31 @@ function JSTable(o={},cols=[],data=[]){
     this.obj['name'] = JSTable.name;
     Object.defineProperties(this.obj,{
         paginate:{
-            value:o.paginate
+            value:initObj.paginate
         },
         'parent-html-id':{
-            value:o['parent-html-id']
+            value:initObj['parent-html-id']
         },
         printable:{
-            value:o.printable
+            value:initObj.printable
         },
         'show-row-num':{
-            value:o['show-row-num']
+            value:initObj['show-row-num']
         },
         'enable-search':{
-            value:o['enable-search']
+            value:initObj['enable-search']
         },
         'selective-search':{
-            value:o['selective-search']
+            value:initObj['selective-search']
         },
         header:{
-            value:o.header
+            value:initObj.header
         },
         footer:{
-            value:o.footer
+            value:initObj.footer
         },
         attach:{
-            value:o.attach
+            value:initObj.attach
         },
         'events':{
             value:{}
@@ -107,10 +107,59 @@ function JSTable(o={},cols=[],data=[]){
         },
         afterrowstored:{
             value:function(){
+                this.datatable.log('JSTable.afterrowstored: Checking if stored row is hidden','info');
                 if(this['new-row'].hidden === false){
+                    this.datatable.log('JSTable.afterrowstored: Not hidden','info');
+                    this.datatable.log('JSTable.afterrowstored: Getting number of rows per page','info');
                     var rowsPerPage = this.datatable.rowsPerPage();
+                    this.datatable.log('JSTable.afterrowstored: Rows per page = '+rowsPerPage,'info');
                     if(rowsPerPage !== Infinity){
-                        
+                        this.datatable.log('JSTable.afterrowstored: Getting number of visible rows.','info');
+                        var vRows = this.datatable.visibleRows();
+                        this.datatable.log('JSTable.afterrowstored: Number of visible rows = '+vRows,'info');
+                        if(vRows < rowsPerPage){
+                            this.datatable.log('JSTable.afterrowstored: Number of visible rows < rows per page. Add extra row to UI.','info');
+                            var tr = document.createElement('tr');
+                            for(var x = 0 ; x < this.columns.length ; x++){
+                                var col = this.datatable.getColumn(x);
+                                var cell = document.createElement('td');
+                                if(col.printable === false){
+                                    cell.className = 'no-print';
+                                }
+                                if(col.hidden === true){
+                                    cell.className = cell.className + ' hidden';
+                                }
+                                if(col.type === 'boolean'){
+                                    var checkbox = document.createElement('input');
+                                    checkbox.type = 'checkbox';
+                                    checkbox.col = x;
+                                    checkbox.row = this['new-row']['row-index'];
+                                    checkbox.table = this.datatable;
+                                    checkbox.checked = this['new-row'][col.key];
+                                    checkbox.onchange = function(){
+                                        this.table.set(this.col,this.row,this.checked);
+                                    };
+                                    cell.appendChild(checkbox);
+                                }
+                                else{
+                                    cell.innerHTML = this['new-row'][col.key];
+                                }
+                                tr.appendChild(cell);
+                            }
+                            this.datatable.t_body.appendChild(tr);
+                            this.datatable.log('JSTable.afterrowstored: Row added.','info');
+                            this.datatable.log('JSTable.afterrowstored: Checking rows number','info');
+                            if(this.datatable.rows() === 1){
+                                this.datatable.log('JSTable.afterrowstored: It is one. Calling the function \'validateDataState()\'','info');
+                                this.datatable.validateDataState();
+                            }
+                            this.datatable.log('JSTable.afterrowstored: Finished. Return Back','info');
+                        }
+                        else{
+                            this.datatable.log('JSTable.afterrowstored: Calling the function \'afterrowcountchanged\'','info');
+                            this.afterrowcountchanged();
+                            this.datatable.log('JSTable.afterrowstored: Finished. Return Back','info');
+                        }
                     }
                     else{
                         var tr = document.createElement('tr');
@@ -127,11 +176,11 @@ function JSTable(o={},cols=[],data=[]){
                                 var checkbox = document.createElement('input');
                                 checkbox.type = 'checkbox';
                                 checkbox.col = x;
+                                checkbox.table = this.datatable;
                                 checkbox.row = this['new-row']['row-index'];
                                 checkbox.checked = this['new-row'][col.key];
                                 checkbox.onchange = function(){
-                                    console.log(this.row);
-                                    console.log(this.col);
+                                    this.table.set(this.col,this.row,this.checked);
                                 };
                                 cell.appendChild(checkbox);
                             }
@@ -146,8 +195,6 @@ function JSTable(o={},cols=[],data=[]){
                         }
                     }
                 }
-                console.log(this['new-row']);
-                console.log(this.columns);
                 //this.datatable.events.afterrowcountchanged();
             },
             writable:false,
@@ -158,18 +205,48 @@ function JSTable(o={},cols=[],data=[]){
             value:function(){
                 //update indices
                 if(this.datatable.rows() === 0){
-                    this.datatable.log('JSTable.afterrowremoved: 0 rows','info');
+                    this.datatable.log('JSTable.afterrowremoved: Table has 0 rows','info');
+                    this.datatable.log('JSTable.afterrowremoved: Calling the function \'validateDataState()\'','info');
                     this.datatable.validateDataState();
+                    this.datatable.log('JSTable.afterrowremoved: Finished. Return back.','info');
+                    return;
                 }
                 else{
+                    this.datatable.log('JSTable.afterrowremoved: Table has more than 0 rows','info');
                     this.datatable.log('JSTable.afterrowremoved: Updating row indices','info');
                     for(var y = this.index ; y < this.datatable.rows() ; y++){
                         if(this.datatable.getData()[y]['row-index'] !== -1){
                             this.datatable.getData()[y]['row-index']--;
                         }
                     }
+                    this.datatable.log('JSTable.afterrowremoved: Updating row indices finished','info');
                 }
                 //update UI
+                this.datatable.log('JSTable.afterrowremoved: Checking if pagination is enabled.','info');
+                if(this.datatable.isPaginationEnabled()){
+                    this.datatable.log('JSTable.afterrowremoved: It is enabled.','info');
+                    var pagesCount = this.datatable.pagesCount();
+                    var rowsInPage = this.datatable.rowsInPage(pagesCount);
+                    if(rowsInPage === this.datatable.rowsPerPage()){
+                        //this means last page is fully removed
+                        this.datatable.log('JSTable.afterrowremoved: Last page removed.','info');
+                        this.datatable.log('JSTable.afterrowremoved: Calling the function \'afterrowcountchanged()\'','info');
+                        this.afterrowcountchanged();
+                    }
+                    else{
+                        //eathir it is last page with rows
+                        //or a page in the middle
+                        //if last page, do nothing.
+                        if(pagesCount !== this.datatable.getActivePage()){
+                            this.datatable.log('JSTable.afterrowremoved: Page in the middle.','info');
+                            //a page in the middle
+                            //get a row from next page
+                            //add it to the current page.
+                            this.afterrowcountchanged();
+                        }
+                    }
+                }
+                
                 var colsCount = this.datatable.cols();
                 var cols = this.datatable.getCols();
                 this.datatable.log('JSTable.afterrowremoved: Updating UI','info');
@@ -192,22 +269,37 @@ function JSTable(o={},cols=[],data=[]){
         },
         afterrowcountchanged:{
             value:function(){
+                this.datatable.log('JSTable.afterrowcountchanged: Checking number of rows per page.','info');
                 var rowsPerPage = this.datatable.rowsPerPage();
+                this.datatable.log('JSTable.afterrowcountchanged: Rows per page = '+rowsPerPage,'info');
+                this.datatable.log('JSTable.afterrowcountchanged: Setting page start row to 0.','info');
                 this.datatable.obj.start = 0;
                 if(rowsPerPage === Infinity){
-                    this.datatable.obj.end = this.datatable.filteredRows();
+                    var fRows = this.datatable.filteredRows();
+                    this.datatable.log('JSTable.afterrowcountchanged: Setting page end row to '+fRows,'info');
+                    this.datatable.obj.end = fRows;
                 }
-                else if(rowsPerPage > this.filteredRows()){
-                    this.datatable.obj.end = this.datatable.filteredRows();
+                else if(rowsPerPage > this.datatable.filteredRows()){
+                    var fRows = this.datatable.filteredRows();
+                    this.datatable.log('JSTable.afterrowcountchanged: Setting page end row to '+fRows,'info');
+                    this.datatable.obj.end = fRows;
+                    this.datatable.obj.end = fRows;
                 }
                 else{
+                    this.datatable.log('JSTable.afterrowcountchanged: Setting page end row to '+rowsPerPage,'info');
                     this.datatable.obj.end = rowsPerPage;
                 }
+                this.datatable.log('JSTable.afterrowcountchanged: Calling the function \'displayPage()\'','info');
                 this.datatable.displayPage();
+                this.datatable.log('JSTable.afterrowcountchanged: Checking if pagination is enabled.','info');
                 if(this.datatable.isPaginationEnabled()){
+                    this.datatable.log('JSTable.afterrowcountchanged: It is enabled.','info');
+                    this.datatable.log('JSTable.afterrowcountchanged: Getting number of pages','info');
                     var pagesCount = this.datatable.pagesCount();
+                    this.datatable.log('JSTable.afterrowcountchanged: Number of pages = '+pagesCount,'info');
+                    this.datatable.log('JSTable.afterrowcountchanged: Updating page select buttons','info');
                     while(this.datatable.numbersContainer.children.length !== 0){
-                        this.datatable.numbersContainer.removeChild(this.numbersContainer.children[0]);
+                        this.datatable.numbersContainer.removeChild(this.datatable.numbersContainer.children[0]);
                     }
                     var inst = this.datatable;
                     if(pagesCount === 0){
@@ -220,7 +312,7 @@ function JSTable(o={},cols=[],data=[]){
                         this.datatable.numbersContainer.appendChild(button);
                         if(x === 0){
                             button.className = 'active';
-                            this.obj.active = 0;
+                            this.datatable.obj.active = 0;
                         }
                         button.onclick = function(){
                             var pageNumber = Number.parseInt(this.innerHTML);
@@ -238,13 +330,14 @@ function JSTable(o={},cols=[],data=[]){
                         };
                     }
                 }
+                this.datatable.log('JSTable.afterrowcountchanged: Finished. Return back','info');
             },
             enumerable:true,
             writable:false,
             configurable:false
         }
     });
-    this.setLogEnabled(o['enable-log']);
+    this.setLogEnabled(initObj['enable-log']);
     this.log('JSTable: Initializing table.','info');
     this.log('JSTable: Creating containers and basic elements.','info');
     Object.defineProperties(this,{
@@ -546,6 +639,10 @@ function JSTable(o={},cols=[],data=[]){
         this.rowCountSelect.appendChild(option1);
         this.nextPageButton.innerHTML = '&gt;';
         this.prevPageButton.innerHTML = '&lt;';
+        this.rowCountSelect.onchange = function(){
+            inst.obj.active = undefined;
+            inst.obj.events.afterrowcountchanged();
+        };
         this.log('JSTable: Finished initializing pagination controls.','info');
     }
     else{
@@ -625,7 +722,6 @@ function JSTable(o={},cols=[],data=[]){
         }
     });
     this.log('JSTable: Finished initializing cols and data arrays.','info');
-
     this.log('JSTable: Checking attribute \'show-row-num\' value.','info');
     if(this.obj['show-row-num'] === true){
         this.log('JSTable: Value = \'true\'.','info');
@@ -660,14 +756,14 @@ function JSTable(o={},cols=[],data=[]){
     else{
         this.log('JSTable: attribute \'ocols\' is not an array.','warning',true);
     }
-    if(Array.isArray(o.cols)){
+    if(Array.isArray(initObj.cols)){
         this.log('JSTable: Adding columns...','info');
-        for(var x = 0 ; x < o.cols.length ; x++){
-            this.addColumn(o.cols[x]);
+        for(var x = 0 ; x < initObj.cols.length ; x++){
+            this.addColumn(initObj.cols[x]);
         }
     }
     else{
-        this.log('JSTable: attribute \'o.cols\' is not an array.','warning',true);
+        this.log('JSTable: attribute \'initObj.cols\' is not an array.','warning',true);
     }
     this.log('JSTable: Checking initial dataset','info');
     if(Array.isArray(data)){
@@ -679,14 +775,14 @@ function JSTable(o={},cols=[],data=[]){
     else{
         this.log('JSTable: attribute \'data\' is not an arrar.','warning',true);
     }
-    if(Array.isArray(o.data)){
+    if(Array.isArray(initObj.data)){
         this.log('JSTable: Adding data to the table...','info');
-        for(var x = 0 ; x < o.data.length ; x++){
-            this.addRow(data[x]);
+        for(var x = 0 ; x < initObj.data.length ; x++){
+            this.addRow(initObj.data[x]);
         }
     }
     else{
-        this.log('JSTable: attribute \'o.data\' is not an arrar.','warning',true);
+        this.log('JSTable: attribute \'initObj.data\' is not an arrar.','warning',true);
     }
     this.container.className = 'table-container';
     this.t_controls.className = 'datatable-controls';
@@ -696,15 +792,22 @@ function JSTable(o={},cols=[],data=[]){
     this.noDataRow.appendChild(document.createElement('td'));
     this.noDataRow.children[0].style['text-align'] = 'center';
     this.log('JSTable: Checking language attribute.','info');
-    if(typeof this.obj.lang !== 'object'){
+    this.obj.lang = {};
+    if(typeof initObj.lang !== 'object'){
         this.log('JSTable: Attribute \'lang\' is not set. Setting to default.','warning');
-        this.obj.lang = {};
+        this.setShowSelectLabelText(this.obj.lang['show-label']); 
+        this.setNoDataText(this.obj.lang['no-data-label']);
+        this.setSearchLabel(this.obj.lang['search-label']);
+        this.setPrintLabel(this.obj.lang['print-label']);
+        this.setSelectColLabel(this.obj.lang['select-col-label']);
     }
-    this.setShowSelectLabelText(this.obj.lang['show-label']); 
-    this.setNoDataText(this.obj.lang['no-data-label']);
-    this.setSearchLabel(this.obj.lang['search-label']);
-    this.setPrintLabel(this.obj.lang['print-label']);
-    this.setSelectColLabel(this.obj.lang['select-col-label']);
+    else{
+        this.setShowSelectLabelText(initObj.lang['show-label']); 
+        this.setNoDataText(initObj.lang['no-data-label']);
+        this.setSearchLabel(initObj.lang['search-label']);
+        this.setPrintLabel(initObj.lang['print-label']);
+        this.setSelectColLabel(initObj.lang['select-col-label']);
+    }
 
     this.table.appendChild(this.col_set);
     if(this.hasHeader()){
@@ -724,6 +827,10 @@ function JSTable(o={},cols=[],data=[]){
         this.container.appendChild(this.pageNumberContainer);
         this.pageNumberContainer.appendChild(this.prevPageButton);
         this.pageNumberContainer.appendChild(this.nextPageButton);
+        this.pageNumberContainer.appendChild(this.numbersContainer);
+    }
+    if(this.isSelectiveSearchEnabled()){
+        this.t_controls.appendChild(this.col_select);
     }
     if(this.isSearchEnabled()){
         this.t_controls.appendChild(this.search_label);
@@ -742,6 +849,38 @@ Object.defineProperty(JSTable,'SUPPORTED_DATATYPES',{
     value:['boolean','string','number']
 });
 Object.assign(JSTable.prototype,{
+    /**
+     * Returns the number of visible rows in a page.
+     * @param {Number} pageNum The number of the page (Starting from 1).
+     * @returns {Number} The number of visible rows in a page. If pagination is 
+     * disabled or the page does not exist, the function will return 0.
+     */
+    rowsInPage:function(pageNum){
+        if(this.isPaginationEnabled()){
+            var pagesCount = this.pagesCount();
+            if(pageNum >= 1 && pageNum <= pagesCount){
+                var rowsPerPage = this.rowsPerPage();
+                if(pageNum === pagesCount){
+                    this.log('JSTable.rowsInPage: Start position: '+startPos,'info');
+                    var retVal = 0;
+                    for(var startPos = (pageNum - 1) * rowsPerPage ; startPos < this.rows() ; startPos++){
+                        retVal++;
+                    }
+                    return retVal;
+                }
+                else{
+                    return rowsPerPage;
+                }
+            }
+            else{
+                this.log('JSTable.rowsInPage: Page number is not in the range (0,'+pagesCount+'].','warning',true);
+            }
+        }
+        else{
+            this.log('JSTable.rowsInPage: Paginatin is disabled.','warning',true);
+        }
+        return 0;
+    },
     /**
      * Returns the name of JavaScript class.
      * @returns {String} The name of the class.
@@ -776,6 +915,7 @@ Object.assign(JSTable.prototype,{
             this.log('JSTable.setLogEnabled: Logging mode is enabled.','warning');
         }
         else{
+            this.obj['enable-log'] = false;
             this.log('JSTable.setLogEnabled: Logging mode is disabled.','warning',true);
         }
     },
@@ -815,13 +955,20 @@ Object.assign(JSTable.prototype,{
         }
     },
     /**
-     * Returns the number of currently active page. If pagination is not 
+     * Returns the number of currently active page (Starting from 1).
+     * @returns {Number} The number of active page. If pagination is not 
      * enabled, the function will return 0.
-     * @returns {Number}
      */
     getActivePage:function(){
-        if(this.obj.active !== undefined){
-            return this.obj.active;
+        if(this.isPaginationEnabled()){
+            if(this.obj.active !== undefined){
+                return this.obj.active + 1;
+            }
+            this.log('JSTable.getActivePage: \'obj.active\' is undefined. 1 is returned.','warning');
+            return 1;
+        }
+        else{
+            this.log('JSTable.getActivePage: Pagination is disabled.','warning',true);
         }
         return 0;
     },
@@ -882,7 +1029,6 @@ Object.assign(JSTable.prototype,{
                     else{
                         this.log('JSTable.removeRow: No event is fired.','info');
                     }
-                    delete this.obj.events.datatable;
                     delete this.obj.events['row-data'];
                     delete this.obj.events.index;
                     delete this.obj.events.tr;
@@ -896,18 +1042,21 @@ Object.assign(JSTable.prototype,{
         this.log('JSTable.removeRow: Row index is not in the range [0,'+vRows+')','warning',true);
         return false;
     },
+    filteredData:function(){
+        var data = [];
+        for(var x = 0 ; x < this.rows() ; x++){
+            if(this.getData()[x].hidden === false){
+                data.push(this.getData()[x]);
+            }
+        }
+        return data;
+    },
     /**
      * Returns the number of filtered rows based on search keyword.
      * @returns {Number} The number of filtered rows based on search keyword.
      */
     filteredRows:function(){
-        var count = 0;
-        for(var x = 0 ; x < this.rows() ; x++){
-            if(this.getData()[x].hidden === undefined || this.getData()[x].hidden === false){
-                count++;
-            }
-        }
-        return count;
+        return this.filteredData().length;
     },
     /**
      * Returns the key name of the column that is selected as a search column.
@@ -926,42 +1075,47 @@ Object.assign(JSTable.prototype,{
         this.log('JSTable.search: Searching for \''+val+'\'.','info');
         if(this.isSearchEnabled()){
             if(val !== undefined && val !== ''){
-                this.log('JSTable.search: Resetting search attribute \'show\'.','info');
+                this.log('JSTable.search: Resetting search attribute \'hidden\' of rows.','info');
                 for(var x = 0 ; x < this.rows() ; x++){
-                    this.getData()[x]['show'] = false;
+                    this.getData()[x].hidden = true;
                 }
+                this.log('JSTable.search: Resetting Finished.','info');
                 var searchCol = this.getSearchCol();
-                var regEx = new RegExp(val,'g');
+                var regEx = new RegExp(val.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
                 if(searchCol !== undefined){
                     this.log('JSTable.search: Searching in the column \''+searchCol.key+'\'.','info');
                     for(var y = 0 ; y < this.rows() ; y++){
                         this.log('JSTable.search: Searching row \''+y+'\'.','info');
                         if(regEx.test(this.getData()[y][searchCol.key]) === true){
                             this.log('JSTable.search: A match is found.','info');
-                            this.getData()[y]['show'] = true;
+                            this.getData()[y].hidden = false;
                         }
                     }
-                    this.rowCountChanged();
+                    this.obj.events.afterrowcountchanged();
                 }
                 else{
                     var searchCols = this.getSearchColsKeys();
                     if(searchCols.length !== 0){
                         for(var x = 0 ; x < searchCols.length ; x++){
                             this.log('JSTable.search: Searching in the column \''+searchCols[x]+'\'.','info');
+                            var totalMatches = 0;
                             for(var y = 0 ; y < this.rows() ; y++){
                                 this.log('JSTable.search: Searching row \''+y+'\'.','info');
-                                if(regEx.test(this.getData()[y][searchCols[x]]) === true){
-                                    this.log('JSTable.search: A match is found.','info');
-                                    this.getData()[y]['show'] = true;
-                                }
+                                this.log('JSTable.search: Printing row.','info');
+                                this.log(this.getData()[y][searchCols[x]]);
+                                var testResult = regEx.test(this.getData()[y][searchCols[x]]);
+                                this.log('JSTable.search: Printing result.','info');
+                                this.log(testResult,'info');
+                                this.getData()[y].hidden = !testResult;
                             }
+                            this.log('JSTable.search: Total matches: \''+totalMatches+'\'.','info');
                         }
-                        this.rowCountChanged();
+                        this.obj.events.afterrowcountchanged();
                     }
                     else{
                         this.log('JSTable.search: No column has the attribute \'search-enabled\' set to true.','warning',true);
                         for(var x = 0 ; x < this.rows() ; x++){
-                            this.getData()[x]['show'] = true;
+                            this.getData()[x].hidden = false;
                         }
                     }
                 }
@@ -969,9 +1123,9 @@ Object.assign(JSTable.prototype,{
             else{
                 this.log('JSTable.search: Nothing to search for.','info');
                 for(var x = 0 ; x < this.rows() ; x++){
-                    this.getData()[x]['show'] = true;
+                    this.getData()[x].hidden = false;
                 }
-                this.rowCountChanged();
+                this.obj.events.afterrowcountchanged();
             }
         }
         else{
@@ -1128,61 +1282,6 @@ Object.assign(JSTable.prototype,{
             this.log('JSTable.setRowVisible: Given parameter is not a boolean.','error',true);
         }
     },
-    rowCountChanged:function(){
-        if(this.rows() > 0){
-            var rowsCount = this.rowsPerPage();
-            this.log('JSTable.rowCountChanged: Rows per page: '+rowsCount,'info');
-            this.obj.start = 0;
-            this.log('JSTable.rowCountChanged: Start row updated to '+this.obj.start,'info');
-            if(rowsCount === Infinity){
-                this.log('JSTable.rowCountChanged: Rows count per page is infinity','info');
-                this.obj.end = this.filteredRows();
-            }
-            else if(rowsCount > this.filteredRows()){
-                this.obj.end = this.filteredRows();
-                this.log('JSTable.rowCountChanged: Rows count per page > '+this.filteredRows(),'info');
-            }
-            else{
-                this.obj.end = rowsCount;
-            }
-            this.log('JSTable.rowCountChanged: End row updated to '+this.obj.end,'info');
-            this.log('JSTable.rowCountChanged: Calling the function \'displayPage()\'','info');
-            this.displayPage();
-            var pagesCount = this.pagesCount();
-            while(this.numbersContainer.children.length !== 0){
-                this.numbersContainer.removeChild(this.numbersContainer.children[0]);
-            }
-            var inst = this;
-            if(pagesCount === 0){
-                pagesCount = 1;
-            }
-            for(var x = 0 ; x < pagesCount ; x++){
-                var button = document.createElement('button');
-                var pageNumber = (x + 1);
-                button.innerHTML = pageNumber;
-                this.numbersContainer.appendChild(button);
-                if(x === 0){
-                    button.className = 'active';
-                    this.obj.active = 0;
-                }
-                button.onclick = function(){
-                    var pageNumber = Number.parseInt(this.innerHTML);
-                    var start = (pageNumber - 1)*rowsCount;
-                    var end = start + inst.rowsPerPage();
-                    if(end > inst.filteredRows()){
-                        end = end - (end - inst.filteredRows());
-                    }
-                    inst.obj.start = start;
-                    inst.obj.end = end;
-                    inst.pageNumberContainer.children[2].children[inst.obj.active].className = '';
-                    inst.obj.active = pageNumber - 1;
-                    inst.pageNumberContainer.children[2].children[inst.obj.active].className = 'active';
-                    inst.displayPage();
-                };
-            }
-        }
-        this.validateDataState();
-    },
     /**
      * Sets the label that is displayed along side the combobox that is used to 
      * select how many rows to show in each page.
@@ -1228,30 +1327,64 @@ Object.assign(JSTable.prototype,{
      * @returns {undefined}
      */
     displayPage:function(){
-        this.log('JSTable.displayPage: Removing All Rows.','info');
-        var rowsArr = [];
+        this.log('JSTable.displayPage: Removing All UI Rows.','info');
         while(this.t_body.children.length !== 0){
             this.log('JSTable.displayPage: Number of remaining rows: '+this.t_body.children.length,'info');
-            rowsArr.push(this.removeRow(0));
+            this.t_body.removeChild(this.t_body.children[0]);
         }
-        this.log('JSTable.displayPage: All rows removed.','info');
-        this.log('JSTable.displayPage: Adding Rows.','info');
+        this.log('JSTable.displayPage: All UI rows removed.','info');
+        this.log('JSTable.displayPage: Setting the attribute \'row-index\' to -1','info');
+        for(var x = 0 ; x < this.rows() ; x++){
+            this.obj.data[x]['row-index'] = -1;
+        }
+        this.log('JSTable.displayPage: Adding Rows to UI.','info');
         this.log('JSTable.displayPage: Start = '+this.obj.start+', End = '+this.obj.end,'info');
-        var rowsCount = this.obj.start;
+        var rowIndex = 0;
         for(var x = this.obj.start ; x < this.obj.end ; x++){
             if(x < this.rows() && this.obj.end <= this.rows()){
-                if(this.obj.data[x].hidden === undefined || this.obj.data[x].hidden === false){
-                    this.obj.data[x]['row-index'] = rowsCount;
-                    rowsCount++;
-                    this.log('JSTable.displayPage: Adding row '+x+'.','info');
-                    this.addRow(this.obj.data[x],false);
+                this.filteredData()[x]['row-index'] = rowIndex;
+                var data = this.filteredData()[x];
+                this.log('JSTable.displayPage: Adding row '+x+'.','info');
+                this.log('JSTable.displayPage: Printing Row','info');
+                this.log(data);
+                var tr = document.createElement('tr');
+                var colsCount = this.cols();
+                for(var y = 0 ; y < colsCount ; y++){
+                    var col = this.getColumn(y);
+                    var cell = document.createElement('td');
+                    if(col.printable === false){
+                        cell.className = 'no-print';
+                    }
+                    if(col.hidden === true){
+                        cell.className = cell.className + ' hidden';
+                    }
+                    if(col.type === 'boolean'){
+                        var checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.col = y;
+                        checkbox.row = rowIndex;
+                        checkbox.table = this;
+                        checkbox.checked = data[col.key];
+                        checkbox.onchange = function(){
+                            this.table.set(this.col,this.row,this.checked);
+                        };
+                        cell.appendChild(checkbox);
+                    }
+                    else if(col.key === 'row-index'){
+                        if(this.isPaginationEnabled()){
+                            cell.innerHTML = data[col.key] + 1 + ((this.getActivePage() - 1)*this.rowsPerPage()); 
+                        }
+                        else{
+                            cell.innerHTML = data[col.key] + 1;
+                        }
+                    }
+                    else{
+                        cell.innerHTML = data[col.key];
+                    }
+                    tr.appendChild(cell);
                 }
-                else{
-                    this.log('JSTable.displayPage: Skipping row '+x+'.','info');
-                    this.obj.data[x]['row-index'] = -1;
-                    this.obj.start++;
-                    this.obj.end++;
-                }
+                this.t_body.appendChild(tr);
+                rowIndex++;
             }
         }
         this.log('JSTable.displayPage: Finished. Returning back.');
@@ -1283,7 +1416,9 @@ Object.assign(JSTable.prototype,{
     },
     /**
      * Returns the number of pages in the table (Used in case of pagiation).
-     * @returns {Number}
+     * @returns {Number} The number of pages in the table. If pagination is 
+     * disabled, the function will return 0. If pagination is enabled and 
+     * no rows in the table, the function will also return 0.
      */
     pagesCount:function(){
         var totalRows = this.filteredRows();
@@ -1291,10 +1426,10 @@ Object.assign(JSTable.prototype,{
         return Math.ceil(totalRows/rowsToDisplay);
     },
     /**
-     * Returns the number of rows per page. If pagination is disabled, the 
-     * function will return the total number of rows.
+     * Returns the number of rows per page.
      * @returns {Number} The number of rows per page. The value is taken from 
-     * rows per page combobox.
+     * rows per page combobox. If pagination is disabled, the 
+     * function will return <b>Infinity</b>.
      */
     rowsPerPage:function(){
         if(this.obj['paginate'] === true){
@@ -1374,7 +1509,7 @@ Object.assign(JSTable.prototype,{
                     if(type === colDatatype){
                         for(var x = 0 ; x < rowsCount ; x++){
                             for(var y = 0 ; y < colsCount ; y++){
-                                if(x === row && y === colIndexOrKey){
+                                if(this.obj.data[x]['row-index'] === row && y === colIndexOrKey){
                                     var colKey = this.getColumn(colIndexOrKey).key;
                                     this.log('JSTable.set: Updating value at column \''+colKey+'\' row \''+row+'\'.','info');
                                     this.obj.data[x][colKey] = val;
@@ -1416,7 +1551,7 @@ Object.assign(JSTable.prototype,{
                 if(type === colDatatype){
                     this.log('JSTable.set: Valid data type.','info');
                     for(var x = 0 ; x < rowsCount ; x++){
-                        if(x === row){
+                        if(this.obj.data[x]['row-index'] === row){
                             this.obj.data[x][colIndexOrKey] = val;
                             var vRows = this.visibleRows();
                             for(var n = 0 ; n < vRows ; n++){
@@ -1558,7 +1693,7 @@ Object.assign(JSTable.prototype,{
                 }
             }
             else{
-                this.log('JSTable.getColumn: Invalid col key: '+colKeyOrIndex,'warning',true);
+                this.log('JSTable.getColumn: Invalid col key: '+colKeyOrIndex,'warning');
             }
         }
         this.log('JSTable.getUIColumn: Returning cells array.','info');
@@ -1594,7 +1729,7 @@ Object.assign(JSTable.prototype,{
                 return this.obj.cols[colIndex];
             }
             else{
-                this.log('JSTable.getColumn: Invalid col key: '+colKeyOrIndex,'warning',true);
+                this.log('JSTable.getColumn: Invalid col key: '+colKeyOrIndex,'warning');
             }
         }
         this.log('JSTable.getColumn: Returning undefined.','info');
@@ -1668,7 +1803,7 @@ Object.assign(JSTable.prototype,{
             var vRows = this.visibleRows();
             this.log('JSTable.addRow: Checking attribute \'hidden\' of the row.','info');
             if(typeof data.hidden !== 'boolean'){
-                this.log('JSTable.addRow: Attribute \'hidden\' of the row is not set. True is used.','warning',true);
+                this.log('JSTable.addRow: Attribute \'hidden\' of the row is not set. True is used.','warning');
                 data.hidden = false;
             }
             this.log('JSTable.addRow: Setting row index.','info');
@@ -1678,7 +1813,7 @@ Object.assign(JSTable.prototype,{
             }
             else if(this.obj.paginate === true){
                 this.log('JSTable.addRow: Pagination is enabled.','info');
-                data['row-index'] = this.rowsPerPage() * this.getActivePage() + vRows;
+                data['row-index'] = vRows;
             }
             else{
                 this.log('JSTable.addRow: Pagination is not enabled.','info');
@@ -1752,7 +1887,6 @@ Object.assign(JSTable.prototype,{
                     this.log('JSTable.addRow: Event finished.','info');
                     delete this.obj.events['new-row'];
                     delete this.obj.events.columns;
-                    delete this.obj.events.datatable;
                     return true;
                 }
             }
@@ -1987,7 +2121,6 @@ Object.assign(JSTable.prototype,{
                                 this.obj.events.hcell = hCell;
                             }
                             this.obj.events.oncoladded();
-                            delete this.obj.events.datatable;
                             delete this.obj.events['col-data'];
                             delete this.obj.events.col;
                             delete this.obj.events.fcell;
@@ -2246,23 +2379,25 @@ Object.assign(JSTable.prototype,{
             this.log('Datatable.sort: Printing Data that will be sorted','info');
             this.log(dataToSort);
             if(sortType === 'up'){
-                var sorted = quickSort(dataToSort,0,dataToSort.length - 1,true);
+                var sorted = insertionSort(dataToSort,true);
             }
             else if(sortType === 'down'){
-                var sorted = quickSort(dataToSort,0,dataToSort.length - 1,false);
+                var sorted = insertionSort(dataToSort,false);
             }
             this.log('Datatable.sort: Printing sorted Data.','info');
             this.log(sorted);
             var colKeys = this.getColsKeys();
             this.log('JSTable.sort: Updating table.','info');
             for(var x = 0 ; x < sorted.length ; x++){
-                for(var y = 0 ; y < colKeys.length ; y++){
-                    this.set(colKeys[y],x,sorted[x][colKeys[y]]);
-                }
+                this.obj.data[x] = sorted[x];
             }
             this.log('JSTable.sort: Refreshing table.','info');
-            
-            this.search_input.oninput();
+            if(this.isSearchEnabled()){
+                this.search_input.oninput();
+            }
+            else{
+                this.obj.events.afterrowcountchanged();
+            }
             this.log('JSTable.sort: Sorting finished.','info');
         }
         else{
@@ -2276,8 +2411,8 @@ Object.assign(JSTable.prototype,{
      */
     updateHeaders:function(childToSkip){
         var sortType = 'up';
-        for(var x = 0 ; x < this.t_header.children[0].children.length ; x++){
-            var cell = this.t_header.children[0].children[x];
+        for(var x = 0 ; x < this.header.t_header.children[0].children.length ; x++){
+            var cell = this.header.t_header.children[0].children[x];
             if(cell.attributes.role !== undefined){
                 var cellRole = cell.attributes.role.value;
                 if(x === childToSkip){
@@ -2291,8 +2426,7 @@ Object.assign(JSTable.prototype,{
                     }
                     continue;
                 }
-                if(this.t_header.children[0].children[x].attributes.role !== undefined){
-
+                if(this.header.t_header.children[0].children[x].attributes.role !== undefined){
                     if(cellRole === 'sort-up' || cellRole === 'sort-down'){
                         cell.attributes.role.value = 'sort-button';
                     }
@@ -2312,7 +2446,11 @@ function extractColData(colNum,tableDataArr, colKeys){
     }
     return dataToSort;
 }
-
+/**
+ * Convert a string into a number.
+ * @param {type} str
+ * @returns {Number}
+ */
 function strToNum(str){
     var num = Number.parseFloat(str);
     if(!Number.isNaN(num)){
@@ -2417,7 +2555,34 @@ function quickSort_h_1(A, lo, hi){
     A[hi] = tmp;
     return wall;
 }
-
+function insertionSort(arr,ascending=true){
+    if(ascending === true){
+        var cond = 1;
+    }
+    else{
+        var cond = -1;
+    }
+    for (var i = 1; i < arr.length; ++i){
+        if(typeof arr[i] === 'object'){
+            var key = arr[i];
+            if(key.data !== undefined){
+                var j = i - 1;
+                while (j >= 0 &&  stringCompare(arr[j].data,key.data) === cond){
+                    arr[j + 1] = arr[j];
+                    j = j - 1;
+                }
+                arr[j + 1] = key;
+            }
+            else{
+                throw new Error('The attribute \'data\' is missing from the object.');
+            }
+        }
+        else{
+            throw new Error('Dataset must contain objects only.');
+        }
+    }
+    return arr;
+}
 function updateHeaders(otherHeaders,childToSkip){
     for(var x = 0 ; x < otherHeaders.length ; x++){
         if(x === childToSkip){
