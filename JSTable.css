@@ -50,10 +50,17 @@ THE SOFTWARE.
     margin-left: 2%;
     margin-right: 2%
 }
+table.datatable[dir='rtl']{
+    text-align: right;
+}
+table.datatable[dir='ltr']{
+    text-align: left;
+}
 table.datatable{
     border:1px solid black;
     width: 100%;
     border-spacing: 0;
+    text-align: left;
 }
 table.datatable tr td.hidden,
 table.datatable thead tr th.hidden,
