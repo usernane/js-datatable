@@ -162,14 +162,19 @@ function JSTable(initObj={},cols=[],data=[]){
                         }
                     }
                     else{
+                        this.datatable.log('JSTable.afterrowstored: Creating tr element','info');
                         var tr = document.createElement('tr');
                         for(var x = 0 ; x < this.columns.length ; x++){
+                            this.datatable.log('JSTable.afterrowstored: Calling the function \'getColumn('+x+')\'','info');
                             var col = this.datatable.getColumn(x);
+                            this.datatable.log('JSTable.afterrowstored: Creating td element.','info');
                             var cell = document.createElement('td');
                             if(col.printable === false){
+                                this.datatable.log('JSTable.afterrowstored: Column not printable','info');
                                 cell.className = 'no-print';
                             }
                             if(col.hidden === true){
+                                this.datatable.log('JSTable.afterrowstored: Hidden column','info');
                                 cell.className = cell.className + ' hidden';
                             }
                             if(col.type === 'boolean'){
@@ -187,12 +192,16 @@ function JSTable(initObj={},cols=[],data=[]){
                             else{
                                 cell.innerHTML = this['new-row'][col.key];
                             }
+                            this.datatable.log('JSTable.afterrowstored: Appending cell to row','info');
                             tr.appendChild(cell);
                         }
+                        this.datatable.log('JSTable.afterrowstored: Appending row to table body.','info');
+                        this.datatable.log(tr.children);
                         this.datatable.t_body.appendChild(tr);
                         if(this.datatable.rows() === 1){
                             this.datatable.validateDataState();
                         }
+                        this.datatable.log('JSTable.afterrowstored: Finished. Return Back','info');
                     }
                 }
                 //this.datatable.events.afterrowcountchanged();
@@ -1829,7 +1838,7 @@ Object.assign(JSTable.prototype,{
             this.log('JSTable.addRow: Extracting data to insert','info');
             for(var x = 0 ; x < keys.length ; x++){
                 this.log('JSTable.addRow: Key = '+keys[x],'info');
-                if(keys[x] !== 'show' && keys[x] !== 'row-index' && keys[x] !== 'hidden'){
+                //if(keys[x] !== 'show' && keys[x] !== 'row-index' && keys[x] !== 'hidden'){
                     var col = this.getColumn(keys[x]);
                     if(col === undefined){
                         this.log('JSTable.addRow: Key \''+keys[x]+'\' is not a column in the table.','warning');
@@ -1843,10 +1852,10 @@ Object.assign(JSTable.prototype,{
                                     hidden:col.hidden
                                 });
                     }
-                }
-                else{
-                    this.log('JSTable.addRow: Skipping column','info');
-                }
+                //}
+                //else{
+                //    this.log('JSTable.addRow: Skipping column','info');
+                //}
             }
             this.log('JSTable.addRow Number of cols with data = '+columns.length,'info');
             if(columns.length !== 0){
