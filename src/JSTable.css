@@ -74,6 +74,7 @@ table.datatable tr td{
 }
 div.table-container{
     overflow-x:auto;
+    width: 100%;
 }
 div.page-controls{
     background-color: rgb(179, 230, 204);
