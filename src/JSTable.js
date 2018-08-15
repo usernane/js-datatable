@@ -7,7 +7,6 @@
  * to.</li>
  * <li><b>header</b>: A boolean value. If set to true, the table will have headers 
  * for the columns.</li>
- * <li><b>header</b>: A boolean value. If set to true, the table will have footers 
  * for the columns.</li>
  * <li><b>show-row-num</b>: A boolean value. If set to true, the table will show 
  * row numbers.</li>
@@ -22,11 +21,11 @@
  * following attributes for the labels:
  * <ul><li><b>show-label</b>: : Used for pagination control which is used to select how 
  * many rows to show in each page.</li>
- * <ul><li><b>no-data-label</b>: A label that will show if no data can be shown.</li>
- * <ul><li><b>search-label</b>: A label that will be shown along side search textbox.</li>
- * <ul><li><b>select-col-label</b>: A label that will be shown along side the combobox 
+ * <li><b>no-data-label</b>: A label that will show if no data can be shown.</li>
+ * <li><b>search-label</b>: A label that will be shown along side search textbox.</li>
+ * <li><b>select-col-label</b>: A label that will be shown along side the combobox 
  * that is used to select search column.</li>
- * <ul><li><b>print-label</b>: A label to show in the print button.</li>
+ * <li><b>print-label</b>: A label to show in the print button.</li>
  * </ul>
  * </li>
  * </ul>
@@ -1067,6 +1066,60 @@ Object.assign(JSTable.prototype,{
         return data;
     },
     /**
+     * Hides or shows a column given its index.
+     * @param {String|Number} colKeyOrIndex The index of the column or its key.
+     * @param {Boolean} visible If this parameter is set to true, the column 
+     * will be shown. If set to false, the column will be hidden.
+     * @returns {Boolean} If the status of the column has changed, the function 
+     * will return true.
+     */
+    setColumnVisibility:function(colKeyOrIndex,visible=true){
+        var col = this.getColumn(colKeyOrIndex);
+        if(col !== undefined){
+            var hideCol = visible === false ? true : false;
+            var isColHidden = col.hidden !== undefined ? col.hidden : false;
+            if(hideCol === isColHidden){
+                if(!isColHidden){
+                    this.log('JSTable.setColumnVisibility: Column Already Visible.','info',true);
+                    return false;
+                }
+                else{
+                    this.log('JSTable.setColumnVisibility: Column Already Hidden.','info',true);
+                    return false;
+                }
+            }
+            else{
+                var visibleRows = this.visibleRows();
+                this.obj.cols[col.index]['hidden'] = hideCol;
+                if(hideCol === true){
+                    if(this.hasHeader()){
+                        this.header.t_h_row.children[col.index].setAttribute('class','no-print hidden');
+                    }
+                    this.col_set.children[col.index].setAttribute('class','no-print hidden');
+                    for(var x = 0 ; x < visibleRows ; x++){
+                        this.t_body.children[x].children[col.index].setAttribute('class','no-print hidden');
+                    }
+                    if(this.hasFooter()){
+                        this.footer.t_f_row.children[col.index].setAttribute('class','no-print hidden');
+                    }
+                }
+                else{
+                    if(this.hasHeader()){
+                        this.header.t_h_row.children[col.index].removeAttribute('class');
+                    }
+                    this.col_set.children[col.index].removeAttribute('class');
+                    for(var x = 0 ; x < visibleRows ; x++){
+                        this.t_body.children[x].children[col.index].removeAttribute('class');
+                    }
+                    if(this.hasFooter()){
+                        this.footer.t_f_row.children[col.index].removeAttribute('class');
+                    }
+                }
+            }
+        }
+        return false;
+    },
+    /**
      * Returns the number of filtered rows based on search keyword.
      * @returns {Number} The number of filtered rows based on search keyword.
      */
@@ -1156,7 +1209,7 @@ Object.assign(JSTable.prototype,{
         if(this.isPrintable()){
             if(label !== undefined){
                 this.print_button.innerHTML = label+'';
-                this.obj.lang['print-label'] = this.search_label.innerHTML;
+                this.obj.lang['print-label'] = this.print_button.innerHTML;
             }
             else{
                 this.print_button.innerHTML = 'Print Table';
